@@ -8,10 +8,10 @@ ENV TZ=Asia/Seoul
 WORKDIR /app
 
 # Copy the Spring Boot application WAR file to the container
-COPY ./build/libs/greenlight-thehyundai-sample-0.0.1-SNAPSHOT.jar /app/greenlight-thehyundai-sample.jar
+COPY ./build/libs/thehyundaisample-0.0.1-SNAPSHOT.jar /app/thehyundaisample.jar
 
 # 애플리케이션 포트 열기 18080: Spring
 EXPOSE 38080
 
 # JAR 파일을 실행하도록 ENTRYPOINT 설정
-ENTRYPOINT ["java", "-jar", "greenlight-thehyundai-sample.jar"]
+ENTRYPOINT ["java", "-jar", "thehyundaisample.jar"]
