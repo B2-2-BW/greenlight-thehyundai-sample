@@ -45,4 +45,14 @@ public class SampleController {
     public String orderComplete() {
         return "orderComplete";
     }
+
+    @GetMapping("/waiting")
+    public String waiting() {
+        return "waiting";
+    }
+
+    @GetMapping("/disabled")
+    public String disabled() {
+        return "disabled";
+    }
 }
