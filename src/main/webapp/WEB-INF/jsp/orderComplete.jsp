@@ -7,5 +7,7 @@
 </head>
 <body>
 <h2>주문이 완료되었습니다!</h2>
+<br/>
+<a href="/search">처음으로</a>
 </body>
 </html>
