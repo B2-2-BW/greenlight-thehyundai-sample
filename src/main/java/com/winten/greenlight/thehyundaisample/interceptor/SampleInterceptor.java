@@ -1,6 +1,7 @@
 package com.winten.greenlight.thehyundaisample.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpEntity;
@@ -10,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class SampleInterceptor implements HandlerInterceptor {
@@ -34,7 +37,16 @@ public class SampleInterceptor implements HandlerInterceptor {
 
         Long actionId = 10001L;
 
-        String greenlightToken = request.getHeader("X-GREENLIGHT-TOKEN");
+        String greenlightToken = null;
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("X-GREENLIGHT-TOKEN".equals(cookie.getName())) {
+                    greenlightToken = cookie.getValue();
+                    break;
+                }
+            }
+        }
 
         String checkOrEnterUrl = QUEUE_API_BASE_URL + "/check-or-enter?actionId=" + actionId;
         if (queryString != null && !queryString.isEmpty()) {
@@ -60,19 +72,21 @@ public class SampleInterceptor implements HandlerInterceptor {
                 String waitStatus = (String) responseBody.get("waitStatus");
                 String newToken = (String) responseBody.get("token");
 
+                if (newToken != null) {
+                    Cookie tokenCookie = new Cookie("X-GREENLIGHT-TOKEN", newToken);
+                    tokenCookie.setPath("/");
+                    response.addCookie(tokenCookie);
+                }
+
                 if ("WAITING".equals(waitStatus)) {
-                    if (newToken != null) {
-                        response.setHeader("X-GREENLIGHT-TOKEN", newToken);
-                    }
-                    response.sendRedirect("/waiting");
+                    String originalUrl = requestUri + (queryString != null ? "?" + queryString : "");
+                    String redirectUrl = "/waiting?redirectUrl=" + URLEncoder.encode(originalUrl, StandardCharsets.UTF_8.toString());
+                    response.sendRedirect(redirectUrl);
                     return false;
                 } else if ("DISABLED".equals(waitStatus)) {
                     response.sendRedirect("/disabled");
                     return false;
                 } else if ("READY".equals(waitStatus) || "BYPASSED".equals(waitStatus)) {
-                    if (newToken != null) {
-                        response.setHeader("X-GREENLIGHT-TOKEN", newToken);
-                    }
                     return true;
                 }
             }
