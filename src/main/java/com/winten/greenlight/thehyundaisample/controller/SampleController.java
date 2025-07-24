@@ -1,5 +1,6 @@
 package com.winten.greenlight.thehyundaisample.controller;
 
+
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -18,6 +19,8 @@ public class SampleController {
             "40A000001", "상품A 상세 설명입니다.",
             "40A000002", "상품B 상세 설명입니다.",
             "40A000003", "상품C 상세 설명입니다.");
+
+    
 
     @GetMapping("/search")
     public String search() {
