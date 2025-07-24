@@ -6,68 +6,91 @@ import com.winten.greenlight.thehyundaisample.service.CachedActionService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.stereotype.Component;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
-@Component
+@RequiredArgsConstructor
 public class SampleInterceptor implements HandlerInterceptor {
 
+    private final RestTemplate restTemplate;
     private final CachedActionService cachedActionService;
-
-    public SampleInterceptor(CachedActionService cachedActionService) {
-        this.cachedActionService = cachedActionService;
-    }
+    private static final String QUEUE_API_BASE_URL = "http://localhost:8080/api/v1/queue"; // 실제 Core API 주소
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String requestUri = request.getRequestURI();
         String queryString = request.getQueryString();
-        System.out.println("[Interceptor] 요청 URL: " + requestUri + ", query: " + queryString);
 
-        // 정적 리소스 및 시스템 페이지는 인터셉터 처리 제외
         if (isExcluded(requestUri)) {
             return true;
         }
 
-        // 쿼리 파라미터에서 actionId 추출
         String actionId = request.getParameter("actionId");
 
-        // actionId가 유효하지 않으면 대기열 로직을 건너뛰고 바로 진행
+        // 1. 캐시된 Action 리스트를 통해 actionId의 유효성을 먼저 검사합니다.
         if (!cachedActionService.isValidAction(actionId)) {
             System.out.println("[Interceptor] 유효하지 않은 actionId(" + actionId + ")이므로 대기열 검사를 건너뜁니다.");
+            return true; // 유효하지 않으면 API 호출 없이 바로 통과
+        }
+
+        System.out.println("[Interceptor] 유효한 actionId(" + actionId + ") 확인. Core API 대기열 검사를 시작합니다.");
+
+        String greenlightToken = getTokenFromCookie(request);
+        String checkOrEnterUrl = QUEUE_API_BASE_URL + "/check-or-enter";
+
+        HttpHeaders headers = new HttpHeaders();
+        if (greenlightToken != null) {
+            headers.set("X-GREENLIGHT-TOKEN", greenlightToken);
+        }
+
+        // userId는 세션 등에서 가져오는 로직이 필요하나, 여기서는 임의의 값을 사용합니다.
+        String userId = request.getSession().getId();
+        Map<String, Object> requestBody = Map.of("actionId", actionId, "userId", userId);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            // 2. 유효성이 확인된 경우에만 실제 Core API를 호출합니다.
+            ResponseEntity<EntryResponse> queueApiResponse = restTemplate.exchange(
+                    checkOrEnterUrl,
+                    HttpMethod.POST,
+                    entity,
+                    EntryResponse.class
+            );
+
+            EntryResponse responseBody = queueApiResponse.getBody();
+            if (responseBody != null) {
+                WaitStatus waitStatus = WaitStatus.valueOf(responseBody.getWaitStatus());
+                String newToken = responseBody.getToken();
+
+                if (newToken != null) {
+                    Cookie tokenCookie = new Cookie("X-GREENLIGHT-TOKEN", newToken);
+                    tokenCookie.setPath("/");
+                    response.addCookie(tokenCookie);
+                }
+
+                if (WaitStatus.WAITING.equals(waitStatus)) {
+                    String originalUrl = requestUri + (queryString != null ? "?" + queryString : "");
+                    String redirectUrl = "/waiting?redirectUrl=" + URLEncoder.encode(originalUrl, StandardCharsets.UTF_8.toString());
+                    response.sendRedirect(redirectUrl);
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("대기열 API 호출 중 오류 발생: " + e.getMessage());
+            // API 장애 시에는 서비스를 계속 이용할 수 있도록 통과시키는 것이 일반적입니다.
             return true;
         }
 
-        // 쿠키에서 토큰 추출
-        String greenlightToken = getTokenFromCookie(request);
-
-        // Core-API의 대기열 진입/확인 로직 (시뮬레이션)
-        // 실제로는 CachedActionService 등을 통해 Core API를 호출해야 합니다.
-        // EntryResponse entryResponse = cachedActionService.checkOrEnter(actionId, "someUserId", greenlightToken);
-        EntryResponse entryResponse = new EntryResponse("DUMMY_STATUS", "DUMMY_TOKEN", 1L); // 임시 응답
-
-        WaitStatus waitStatus = WaitStatus.valueOf(entryResponse.getWaitStatus());
-        String newToken = entryResponse.getToken();
-
-        // 새 토큰을 쿠키에 저장
-        if (newToken != null) {
-            Cookie tokenCookie = new Cookie("X-GREENLIGHT-TOKEN", newToken);
-            tokenCookie.setPath("/");
-            response.addCookie(tokenCookie);
-        }
-
-        // 대기 상태에 따른 처리
-        if (WaitStatus.WAITING.equals(waitStatus)) {
-            String originalUrl = requestUri + (queryString != null ? "?" + queryString : "");
-            String redirectUrl = "/waiting?redirectUrl=" + URLEncoder.encode(originalUrl, StandardCharsets.UTF_8.toString());
-            response.sendRedirect(redirectUrl);
-            return false;
-        }
-
-        // READY, BYPASSED, DISABLED 상태는 정상 진행
         return true;
     }
 
