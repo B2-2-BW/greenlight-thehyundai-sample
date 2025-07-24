@@ -55,6 +55,6 @@ public class SampleController {
         System.out.println("test정상>>");
         model.addAttribute("customerId", customerId);
         model.addAttribute("nextUrl", nextUrl);
-        return "waiting"; // → WEB-INF/views/event.jsp
+        return "waitingTmp"; // → WEB-INF/views/event.jsp
     }
 }

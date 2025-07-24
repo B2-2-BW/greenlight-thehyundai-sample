@@ -74,13 +74,15 @@
     const entryId = "<%= entryId %>";
     const nextUrl = "<%= nextUrl %>";
 
-    const eventSource = new EventSource(`/sse/${entryId}`);
+    //const eventSource = new EventSource(`/sse/actionGroupId=${actionGroupId}&entryId=${entryId}`);
+    const eventSource = new EventSource(`http://localhost:18080/waiting/sse?actionGroupId=6&entryId=1:0MAWT7V41WPGB`);
 
     eventSource.onmessage = function(event) {
         const data = JSON.parse(event.data);
         const panel = document.getElementById("position-panel");
+        console.log("sse응답"+data);
 
-        if (data.waitingPhase === "READY") {
+        if (data === "ALLOWED") {
             window.location.href = nextUrl; // 자동 입장
         } else {
             panel.innerHTML = `
