@@ -83,7 +83,7 @@ public class SampleInterceptor implements HandlerInterceptor {
             System.out.println("responseBody = " + responseBody);
             if (responseBody != null) {
                 WaitStatus waitStatus = WaitStatus.valueOf(responseBody.getWaitStatus());
-                String newToken = responseBody.getJwt();
+                String newToken = responseBody.getJwtToken();
 
                 System.out.println("waitStatus = " + waitStatus);
                 System.out.println("newToken = " + newToken);
