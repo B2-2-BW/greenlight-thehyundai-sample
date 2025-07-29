@@ -11,6 +11,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class EntryResponse {
     private String waitStatus;
-    private String token;
+    private String jwt;
     private Long rank;
 }
