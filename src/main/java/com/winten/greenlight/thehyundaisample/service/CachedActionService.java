@@ -1,7 +1,10 @@
 package com.winten.greenlight.thehyundaisample.service;
 
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -14,7 +17,10 @@ import java.util.List;
 public class CachedActionService {
 
     private final RestTemplate restTemplate;
-    private static final String CORE_API_ACTION_LIST_URL = "http://localhost:8080/api/v1/actions"; // Core API의 Action 리스트 엔드포인트
+    @Value("${greenlight.core.api.action.list.url}")
+    private String coreApiActionListUrl;
+    @Value("${greenlight.api.key}")
+    private String apiKey;
 
     public CachedActionService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
@@ -28,12 +34,17 @@ public class CachedActionService {
      */
     @Cacheable("actions")
     public List<ActionDto> getActions() {
-        System.out.println("===== Core API 호출: Action 리스트를 가져옵니다. =====");
+        System.out.println("===== 어드민 호출: Action 리스트를 가져옵니다. =====");
         try {
+            HttpHeaders headers = new HttpHeaders();
+            System.out.println("API Key: " + apiKey);
+            headers.set("X-GREENLIGHT-API-KEY", apiKey);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
             ResponseEntity<List<ActionDto>> response = restTemplate.exchange(
-                    CORE_API_ACTION_LIST_URL,
+                    coreApiActionListUrl,
                     HttpMethod.GET,
-                    null, // 요청 본문 없음
+                    entity,
                     new ParameterizedTypeReference<List<ActionDto>>() {}
             );
             return response.getBody() != null ? response.getBody() : Collections.emptyList();
@@ -53,7 +64,9 @@ public class CachedActionService {
         if (actionId == null || actionId.trim().isEmpty()) {
             return false;
         }
-        List<ActionDto> actions = getActions(); // 이 호출은 캐시된 데이터를 사용합니다.
-        return actions.stream().anyMatch(action -> actionId.equals(action.getActionId()));
+        List<ActionDto> actionGroups = getActions(); // 이 호출은 캐시된 데이터를 사용합니다.
+        return actionGroups.stream()
+                .flatMap(group -> group.getActions().stream())
+                .anyMatch(action -> actionId.equals(action.getId().toString()));
     }
 }
