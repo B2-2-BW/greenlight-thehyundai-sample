@@ -37,10 +37,11 @@ public class SampleInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        String requestUri = request.getRequestURI();
+        StringBuffer requestURL = request.getRequestURL();
         String queryString = request.getQueryString();
+        String landingDestUrl = requestURL.append("?").append(queryString).toString();
 
-        if (isExcluded(requestUri)) {
+        if (isExcluded(request.getRequestURI())) {
             return true;
         }
 
@@ -58,16 +59,18 @@ public class SampleInterceptor implements HandlerInterceptor {
         String checkOrEnterUrl = queueApiBaseUrl + "/check-or-enter";
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("X-GREENLIGHT-API-KEY", apiKey);
+        headers.set("X-GREENLIGHT-API-KEY", apiKey); // (1) 애플리케이션 인증
         if (greenlightToken != null) {
-            headers.set("X-GREENLIGHT-TOKEN", greenlightToken);
+            headers.set("X-GREENLIGHT-TOKEN", greenlightToken); // (2) 사용자 세션 식별 (선택적)
         }
 
         // userId는 세션 등에서 가져오는 로직이 필요하나, 여기서는 임의의 값을 사용합니다.
         Long actionIdLong = Long.valueOf(actionId);
         String userId = request.getSession().getId();
         Map<String, String> requestParams = Map.of("userId", userId);
-        EntryRequest entryRequest = new EntryRequest(actionIdLong, requestParams);
+
+        EntryRequest entryRequest = new EntryRequest(actionIdLong, requestParams, landingDestUrl);
+        System.out.println("[Interceptor] Core API 요청: " + entryRequest);
         HttpEntity<EntryRequest> entity = new HttpEntity<>(entryRequest, headers);
 
         try {
@@ -95,9 +98,10 @@ public class SampleInterceptor implements HandlerInterceptor {
                 }
 
                 if (WaitStatus.WAITING.equals(waitStatus)) {
-                    String originalUrl = requestUri + (queryString != null ? "?" + queryString : "");
-                    String redirectUrl = "/waiting?redirectUrl=" + URLEncoder.encode(originalUrl, StandardCharsets.UTF_8.toString());
-                    response.sendRedirect(redirectUrl);
+//                    String originalUrl = request.getRequestURI() + (queryString != null ? "?" + queryString : "");
+//                    String redirectUrl = "/waiting?redirectUrl=" + URLEncoder.encode(originalUrl, StandardCharsets.UTF_8.toString());
+//                    response.sendRedirect(redirectUrl);
+                    response.sendRedirect(landingDestUrl);
                     return false;
                 }
             }
