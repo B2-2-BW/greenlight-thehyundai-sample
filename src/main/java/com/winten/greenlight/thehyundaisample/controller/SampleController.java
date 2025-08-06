@@ -46,6 +46,9 @@ public class SampleController {
         return "orderComplete";
     }
 
+    @GetMapping("/waitingTest")
+    public String waitingTest() { return "waitingTest"; }
+  
     @GetMapping("/event")
     public String eventPage(
             @RequestParam("customerId") String customerId,
