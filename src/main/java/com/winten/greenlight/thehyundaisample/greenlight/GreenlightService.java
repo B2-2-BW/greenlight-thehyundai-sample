@@ -24,23 +24,24 @@ public class GreenlightService {
     public QueueResult checkQueue(HttpServletRequest request) {
         // TODO 테스트 필요
 
+        StringBuffer url = request.getRequestURL();
+
         // 1. 대기열이 꺼져있다면 진행
         if (!GreenlightContext.isEnabled()) {
-            log.info("대기열 꺼져있음, proceed");
+            log.info("대기열 꺼져있음, proceed - url:" + url);
             return QueueResult.proceed();
         }
 
         // 2. 이 URL에 해당하는 action이 없다면 진행
-        StringBuffer url = request.getRequestURL();
         Action action = GreenlightContext.getActionFromUrl(url.toString());
         if (action == null) {
-            log.info("해당하는 action 없음, proceed");
+            log.info("해당하는 action 없음, proceed - url:" + url);
             return QueueResult.proceed();
         }
 
         // 3. 대기열 적용 대상이 아니면 즉시 통과
         if (!isGreenlightActionApplicable(action, request.getParameterMap())) {
-            log.info("대기열 적용 조건이 아님, proceed");
+            log.info("대기열 적용 조건이 아님, proceed - url:" + url);
             return QueueResult.proceed(); // "대기열 미적용. 자유입장"
         }
 
@@ -50,7 +51,7 @@ public class GreenlightService {
 
         // 5. 토큰이 유효하고 사용 가능한 경우 즉시 통과
         if (isTokenValidAndVerified(greenlightToken, fullRequestUrl, action)) {
-            log.info("대기 완료했음, proceed");
+            log.info("대기 완료했음, proceed - url:" + url);
             return QueueResult.proceed(greenlightToken); // "가려던 화면으로 바로 이동. (정상진입)"
         }
 
@@ -114,7 +115,7 @@ public class GreenlightService {
         EntryTicket entryTicket = greenlightCoreApiClient.issueEntryTicket(action, currentUrl);
 
         if (entryTicket.getWaitStatus() == WaitStatus.WAITING) {
-            log.info("대기해야함, issueAndWait");
+            log.info("대기해야함, issueAndWait - url:" + currentUrl);
             // "대기열 화면으로 redirect"
             return QueueResult.issueTicketAndWait(entryTicket.getJwtToken());
         }
@@ -125,18 +126,18 @@ public class GreenlightService {
             var verification = greenlightCoreApiClient.verifyTicket(entryTicket.getJwtToken());
             if (verification.getVerified()) {
                 // "가려던 화면으로 바로 이동 (verifyTicket으로 바로 사용처리)"
-                log.info("바로 입장 가능, proceed");
+                log.info("바로 입장 가능, proceed - url:" + currentUrl);
                 return QueueResult.proceed(entryTicket.getJwtToken());
             } else {
                 // 바로 입장 티켓을 받았는데 검증에 실패한 이례적인 상황
                 // 대기열로 보내는 것이 안전
-                log.info("검증 실패 원인 알 수 없지만 대기해야함, issueAndWait");
+                log.info("검증 실패 원인 알 수 없지만 대기해야함, issueAndWait - url:" + currentUrl);
                 return QueueResult.issueTicketAndWait(entryTicket.getJwtToken());
             }
         }
 
         // 예외적인 WaitStatus 처리 (기본적으로는 대기)
-        log.info("홈으로, issueAndWait");
+        log.info("홈으로, issueAndWait - url:" + currentUrl);
         return QueueResult.gotoHome();
     }
 
