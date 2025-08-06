@@ -1,6 +1,7 @@
 package com.winten.greenlight.thehyundaisample.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +11,9 @@ import java.util.Map;
 @Controller
 @RequestMapping
 public class SampleController {
+    @Value("${core.api.url}")
+    private String coreApiUrl;
+
     private Map<String, String> itemMap = Map.of(
             "40A000001", "상품A",
             "40A000002", "상품B",
@@ -47,7 +51,10 @@ public class SampleController {
     }
 
     @GetMapping("/waitingTest")
-    public String waitingTest() { return "waitingTest"; }
+    public String waitingTest(Model model) {
+        model.addAttribute("coreApiUrl", coreApiUrl);
+        return "waitingTest";
+    }
   
     @GetMapping("/event")
     public String eventPage(

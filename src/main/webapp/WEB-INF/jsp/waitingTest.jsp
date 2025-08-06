@@ -10,9 +10,28 @@
 <head>
     <title>대기화면이지롱</title>
     <script>
+        function getCookie(cookieName) {
+            const name = cookieName + "=";
+            const decodedCookies = decodeURIComponent(document.cookie);
+            const cookies = decodedCookies.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.indexOf(name) === 0) {
+                    return cookie.substring(name.length, cookie.length);
+                }
+            }
+            return null; // TOKEN 쿠키가 없으면 null 반환
+        }
+
         function handleClick() {
             window.location.href = '/itemPtc?slitmCd=40A000001'
         }
+        window.addEventListener('beforeunload', function () {
+            let token = getCookie('X-GREENLIGHT-TOKEN');
+            const data = JSON.stringify({g: token});
+            const blob = new Blob([data], { type: 'application/json' });
+            navigator.sendBeacon('${coreApiUrl}/api/v1/customer/leave', blob);
+        });
     </script>
 </head>
 <body>
