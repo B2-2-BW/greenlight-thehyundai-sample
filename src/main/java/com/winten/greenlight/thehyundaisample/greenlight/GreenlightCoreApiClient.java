@@ -38,7 +38,7 @@ public class GreenlightCoreApiClient {
         // 티켓이 없으면, 또는 현재 actionId와 일치하지 않으면?
         String url = baseUrl + "/actions";
         HttpHeaders headers = new HttpHeaders();
-        headers.set(GreenlightHeader.GREENLIGHT_API_KEY, apikey);
+        headers.set(GreenlightConstant.GREENLIGHT_API_KEY, apikey);
 
         HttpEntity<Map<String, String>> entity = new HttpEntity<>(headers);
         ResponseEntity<Action[]> response = restTemplateProvider.getRestTemplate().exchange(url, HttpMethod.GET, entity, Action[].class);
@@ -72,7 +72,7 @@ public class GreenlightCoreApiClient {
     public TicketVerification verifyTicket(String ticket) {
         String url = baseUrl + "/api/v1/customer/verify";
         HttpHeaders headers = new HttpHeaders();
-        headers.set(GreenlightHeader.GREENLIGHT_TOKEN, ticket);
+        headers.set(GreenlightConstant.GREENLIGHT_TOKEN, ticket);
 
         HttpEntity<Map<String, String>> entity = new HttpEntity<>(headers);
 

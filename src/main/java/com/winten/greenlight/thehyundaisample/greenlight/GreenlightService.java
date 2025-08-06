@@ -3,26 +3,38 @@ package com.winten.greenlight.thehyundaisample.greenlight;
 import com.winten.greenlight.thehyundaisample.greenlight.dto.*;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class GreenlightService {
 
     private final GreenlightCoreApiClient greenlightCoreApiClient;
     private final JwtUtil jwtUtil;
+    private final Set<String> ignoredUris;
+
+    public GreenlightService(GreenlightCoreApiClient greenlightCoreApiClient, JwtUtil jwtUtil) {
+        this.greenlightCoreApiClient = greenlightCoreApiClient;
+        this.jwtUtil = jwtUtil;
+        this.ignoredUris = Set.of("/error");
+
+    }
+
     /**
      * 대기열 상태를 확인하고 다음 행동을 결정합니다.
      * 인터셉터에서 이 메서드를 호출합니다.
      */
     public QueueResult checkQueue(HttpServletRequest request) {
         // TODO 테스트 필요
+
+        if (ignoredUris.contains(request.getRequestURI())) {
+            return QueueResult.proceed(); // 무시하는 URL ("error 등")
+        }
 
         StringBuffer url = request.getRequestURL();
 
@@ -46,7 +58,7 @@ public class GreenlightService {
         }
 
         // 4. cookie에서 토큰 및 Full URL 추출
-        String greenlightToken = extractGreenlightTokenFromRequest(request); // result is nullable
+        String greenlightToken = extractGreenlightTokenFromRequest(action.getActionType(), request); // result is nullable
         String fullRequestUrl = getFullUrlFromRequest(request);
 
         // 5. 토큰이 유효하고 사용 가능한 경우 즉시 통과
@@ -60,12 +72,23 @@ public class GreenlightService {
         return issueNewTicketAndDecideAction(action, fullRequestUrl);
     }
 
-    private String extractGreenlightTokenFromRequest(HttpServletRequest request) {
+    private String extractGreenlightTokenFromRequest(ActionType actionType, HttpServletRequest request) {
         String greenlightToken = null;
-        for (Cookie cookie: request.getCookies()) {
-            if (GreenlightHeader.GREENLIGHT_TOKEN.equals(cookie.getName())) {
-                greenlightToken = cookie.getValue();
-            };
+        if (actionType == ActionType.DIRECT) {
+            for (Cookie cookie : request.getCookies()) {
+                if (GreenlightConstant.GREENLIGHT_TOKEN.equals(cookie.getName())) {
+                    greenlightToken = cookie.getValue();
+                }
+                ;
+            }
+        } else {
+            var paramMap = request.getParameterMap();
+            if (paramMap != null) {
+                String[] params = paramMap.get(GreenlightConstant.GREENLIGHT_PARAM_TOKEN);
+                if (params.length > 0) {
+                    greenlightToken = params[0];
+                }
+            }
         }
         return greenlightToken;
     }
@@ -91,9 +114,11 @@ public class GreenlightService {
 
             // 토큰 내용이 부적절하거나, 현재 액션 그룹과 맞지 않으면 유효하지 않음
             if (customer.getActionId() == null || customer.getCustomerId() == null) {
+                log.debug("액션Id나 CustomerId가 null임");
                 return false; // "정상적이지 않은 Customer"
             }
-            if (!Objects.equals(action.getActionGroupId(), customer.getActionGroupId()) && action.getActionType() == ActionType.DIRECT) {
+            if (!Objects.equals(action.getActionGroupId(), customer.getActionGroupId())) {
+                log.debug("액션과 토큰의 ActionGroupId가 다름. action: " + action.getActionGroupId() + " token: " +  customer.getActionGroupId());
                 return false; // 다른 액션 그룹 토큰
             }
 
@@ -103,7 +128,7 @@ public class GreenlightService {
 
         } catch (Exception e) {
             // JWT 파싱 오류 등 예외 발생 시 유효하지 않은 토큰으로 간주
-            // log.error("Token validation failed", e);
+             log.debug("Token validation failed", e);
             return false;
         }
     }
