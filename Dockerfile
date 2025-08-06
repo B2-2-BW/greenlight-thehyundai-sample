@@ -6,6 +6,9 @@ RUN rm -rf /usr/local/tomcat/webapps/ROOT
 # 시간대 설정
 ENV TZ=Asia/Seoul
 
+COPY ./setenv.sh /usr/local/tomcat/bin/
+RUN chmod +x /usr/local/tomcat/bin/setenv.sh
+
 # 최상위 context root(/)로 배포를 위한 ROOT.war 복사
 COPY ./build/libs/thehyundaisample-0.0.1-SNAPSHOT.war /usr/local/tomcat/webapps/ROOT.war
 

@@ -45,4 +45,7 @@ public class SampleController {
     public String orderComplete() {
         return "orderComplete";
     }
+
+    @GetMapping("/waitingTest")
+    public String waitingTest() { return "waitingTest"; }
 }
