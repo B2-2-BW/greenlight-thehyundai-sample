@@ -16,7 +16,7 @@ import java.util.Objects;
 public class GreenlightService {
 
     private final GreenlightCoreApiClient greenlightCoreApiClient;
-
+    private final JwtUtil jwtUtil;
     /**
      * 대기열 상태를 확인하고 다음 행동을 결정합니다.
      * 인터셉터에서 이 메서드를 호출합니다.
@@ -86,7 +86,7 @@ public class GreenlightService {
         }
 
         try {
-            Customer customer = JwtUtil.getCustomerFromToken(greenlightToken);
+            Customer customer = jwtUtil.getCustomerFromToken(greenlightToken);
 
             // 토큰 내용이 부적절하거나, 현재 액션 그룹과 맞지 않으면 유효하지 않음
             if (customer.getActionId() == null || customer.getCustomerId() == null) {
