@@ -1,0 +1,18 @@
+/* 스피너 css */
+.spinner {
+    width: 32px; /* 고정된 크기 */
+    height: 32px; /* 고정된 크기 */
+    border: 3px solid #f3f3f3; /* 배경 색상 */
+    border-top: 3px solid #375A4E; /* 회전 표시 색상 */
+    border-radius: 50%; /* 원형 유지 */
+    position: absolute; /* 부모 요소 영향 차단 */
+    top: 50%; /* 화면 중앙 */
+    left: 50%; /* 화면 중앙 */
+    transform: translate(-50%, -50%); /* 정확한 중앙 정렬 */
+    animation: spin 1s linear infinite; /* 회전 애니메이션 */
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
