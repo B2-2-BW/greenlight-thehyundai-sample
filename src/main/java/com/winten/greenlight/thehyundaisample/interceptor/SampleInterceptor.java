@@ -1,6 +1,6 @@
 package com.winten.greenlight.thehyundaisample.interceptor;
 
-import com.winten.greenlight.thehyundaisample.greenlight.GreenlightHeader;
+import com.winten.greenlight.thehyundaisample.greenlight.GreenlightConstant;
 import com.winten.greenlight.thehyundaisample.greenlight.GreenlightService;
 import com.winten.greenlight.thehyundaisample.greenlight.dto.NextBehavior;
 import com.winten.greenlight.thehyundaisample.greenlight.dto.QueueResult;
@@ -56,7 +56,7 @@ public class SampleInterceptor implements HandlerInterceptor {
     }
 
     private void setTokenCookie(HttpServletResponse response, String newGreenlightToken) {
-        response.addCookie(new Cookie(GreenlightHeader.GREENLIGHT_TOKEN, newGreenlightToken));
+        response.addCookie(new Cookie(GreenlightConstant.GREENLIGHT_TOKEN, newGreenlightToken));
     }
 
 }
