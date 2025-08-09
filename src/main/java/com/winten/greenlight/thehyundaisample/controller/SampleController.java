@@ -11,7 +11,7 @@ import java.util.Map;
 @Controller
 @RequestMapping
 public class SampleController {
-    @Value("${core.api.url}")
+    @Value("${greenlight.core.api.url}")
     private String coreApiUrl;
 
     private Map<String, String> itemMap = Map.of(
