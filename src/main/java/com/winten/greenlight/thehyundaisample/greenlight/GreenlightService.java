@@ -36,7 +36,8 @@ public class GreenlightService {
             return QueueResult.proceed(); // 무시하는 URL ("error 등")
         }
 
-        StringBuffer url = request.getRequestURL();
+        String url = buildExternalUrl(request);
+        System.out.println("URL Built = " + url);
 
         // 1. 대기열이 꺼져있다면 진행
         if (!GreenlightContext.isEnabled()) {
@@ -45,7 +46,7 @@ public class GreenlightService {
         }
 
         // 2. 이 URL에 해당하는 action이 없다면 진행
-        Action action = GreenlightContext.getActionFromUrl(url.toString());
+        Action action = GreenlightContext.getActionFromUrl(url);
         if (action == null) {
             log.info("해당하는 action 없음, proceed - url:" + url);
             return QueueResult.proceed();
@@ -59,7 +60,8 @@ public class GreenlightService {
 
         // 4. cookie에서 토큰 및 Full URL 추출
         String greenlightToken = extractGreenlightTokenFromRequest(action.getActionType(), request); // result is nullable
-        String fullRequestUrl = getFullUrlFromRequest(request);
+
+        String fullRequestUrl = addQueryIfExists(url, request.getQueryString());
 
         // 5. 토큰이 유효하고 사용 가능한 경우 즉시 통과
         if (isTokenValidAndVerified(greenlightToken, fullRequestUrl, action)) {
@@ -79,7 +81,6 @@ public class GreenlightService {
                 if (GreenlightConstant.GREENLIGHT_TOKEN.equals(cookie.getName())) {
                     greenlightToken = cookie.getValue();
                 }
-                ;
             }
         } else {
             var paramMap = request.getParameterMap();
@@ -93,13 +94,70 @@ public class GreenlightService {
         return greenlightToken;
     }
 
-    private String getFullUrlFromRequest(HttpServletRequest request) {
-        StringBuffer requestURL = request.getRequestURL();
-        String queryString = request.getQueryString();
-        if (queryString != null) {
-            requestURL.append('?').append(queryString);
+    public String buildExternalUrl(HttpServletRequest request) {
+        // 1) scheme
+        String scheme = headerFirst(request, "X-Forwarded-Proto");
+        if (isBlank(scheme)) scheme = request.getScheme();
+        scheme = scheme.toLowerCase();
+
+        // 2) host (may include port)
+        String forwardedHost = headerFirst(request, "X-Forwarded-Host");
+        String hostPortPart;
+        if (isBlank(forwardedHost)) {
+            hostPortPart = request.getServerName();
+            int serverPort = request.getServerPort();
+            if (!isDefaultPort(scheme, serverPort)) {
+                hostPortPart += ":" + serverPort;
+            }
+        } else {
+            // X-Forwarded-Host may be "host" or "host:port"
+            // take the first if comma-separated
+            String hostCandidate = forwardedHost.split(",")[0].trim();
+            hostPortPart = hostCandidate;
+            // if no port in host and X-Forwarded-Port exists, append it (unless default)
+            if (!hostCandidate.contains(":")) {
+                String xfPort = headerFirst(request, "X-Forwarded-Port");
+                if (!isBlank(xfPort)) {
+                    try {
+                        int p = Integer.parseInt(xfPort);
+                        if (!isDefaultPort(scheme, p)) {
+                            hostPortPart = hostCandidate + ":" + p;
+                        }
+                    } catch (NumberFormatException ignored) { /* no-op */ }
+                }
+            }
         }
-        return requestURL.toString();
+
+        // 3) path
+        String path = request.getRequestURI();
+        if (isBlank(path)) path = "/";
+
+        // 4) assemble (no query string)
+        return scheme + "://" + hostPortPart + path;
+    }
+
+    private String headerFirst(HttpServletRequest req, String name) {
+        String v = req.getHeader(name);
+        if (v == null) return null;
+        // X-Forwarded-* can be comma-separated for multiple proxies
+        int idx = v.indexOf(',');
+        return (idx >= 0 ? v.substring(0, idx) : v).trim();
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+    private boolean isDefaultPort(String scheme, int port) {
+        return ("https".equalsIgnoreCase(scheme) && port == 443)
+                || ("http".equalsIgnoreCase(scheme) && port == 80);
+    }
+
+    private String addQueryIfExists(String requestUrl, String query) {
+        if (query != null) {
+            requestUrl = requestUrl + "?" + query;
+        }
+        return requestUrl;
     }
     /**
      * 주어진 토큰이 현재 액션에 유효하고 사용 가능한지 검증하는 로직
